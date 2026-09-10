@@ -528,8 +528,11 @@ document.addEventListener('DOMContentLoaded', () => {
         concludeLiveAuction(liveAuction.highestBidderIndex);
       } else {
         liveAuction.hasConcluded = true;
-        addAuctionLog(`❌ All players passed! Character remains unclaimed.`, 'log-pass');
+        addAuctionLog(`❌ All players passed! Character discarded.`, 'log-pass');
         renderLiveAuctionUI();
+        setTimeout(() => {
+          cancelAndDiscardCharacter();
+        }, 1400);
       }
       return;
     }
@@ -662,14 +665,16 @@ document.addEventListener('DOMContentLoaded', () => {
       wheel.sound.playVictory();
       confetti.fire(pendingCharacter ? pendingCharacter.universe : 'onepiece');
     } else {
-      secretClaimWinnerBtn.disabled = true;
-      secretClaimWinnerBtn.textContent = `No bids placed (All 0) - Character Unclaimed`;
+      secretClaimWinnerBtn.disabled = false;
+      secretClaimWinnerBtn.textContent = `❌ All Players Passed (0) - Discard Character`;
     }
   }
 
   function handleSecretClaimWinner() {
-    if (secretAuction.winnerIndex !== -1 && secretAuction.winningBid >= 0) {
+    if (secretAuction.winnerIndex !== -1 && secretAuction.winningBid > 0) {
       assignCharacterToPlayer(secretAuction.winnerIndex, secretAuction.winningBid);
+    } else {
+      cancelAndDiscardCharacter();
     }
   }
 
@@ -689,6 +694,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- AWARD & BUDGET DEDUCTION ---
+
+  function cancelAndDiscardCharacter() {
+    pendingCharacter = null;
+    pendingSliceIndex = -1;
+    modal.close();
+    spinBtn.disabled = false;
+    currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+    renderPlayerDock();
+  }
 
   function assignCharacterToPlayer(playerIndex, winningBidAmount = 0) {
     if (!pendingCharacter) {
@@ -1077,12 +1091,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   secretClaimWinnerBtn.addEventListener('click', () => handleSecretClaimWinner());
 
-  // Close Modal Handler
+  // Close Modal Handler (Cancels character draft & proceeds without awarding)
   closeModalBtn.addEventListener('click', () => {
-    modal.close();
-    if (pendingCharacter) {
-      assignCharacterToPlayer(currentPlayerIndex, 0);
-    }
+    cancelAndDiscardCharacter();
   });
 
   // Backdrop click dismiss for dialogs
@@ -1097,7 +1108,11 @@ document.addEventListener('DOMContentLoaded', () => {
         e.clientX <= rect.left + rect.width
       );
       if (!isInDialog) {
-        dlg.close();
+        if (dlg === modal) {
+          cancelAndDiscardCharacter();
+        } else {
+          dlg.close();
+        }
       }
     });
   });
