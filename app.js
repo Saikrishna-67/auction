@@ -112,8 +112,31 @@ document.addEventListener('DOMContentLoaded', () => {
   const budgetSlider = document.getElementById('budget-slider');
   const budgetDisplay = document.getElementById('budget-display');
   const startGameBtn = document.getElementById('start-game-btn');
+  const resetNewGameBtn = document.getElementById('reset-new-game-btn');
   const pCountBtns = document.querySelectorAll('.p-count-btn[data-count]');
   const playerNamesInputsContainer = document.getElementById('player-names-inputs');
+  const setupAddPlayerBtn = document.getElementById('setup-add-player-btn');
+  const setupAddPlayerTopBtn = document.getElementById('setup-add-player-top-btn');
+  const btnPlayerCount = document.getElementById('btn-player-count');
+  const setupPlayerCountDisplay = document.getElementById('setup-player-count-display');
+  const setupPlayerTotalTag = document.getElementById('setup-player-total-tag');
+
+  // Player Color Palette (Supports 12+ unique colors)
+  const PLAYER_COLOR_CLASSES = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10', 'p11', 'p12'];
+  const PLAYER_COLOR_HEX = {
+    p1: '#ef4444',
+    p2: '#38bdf8',
+    p3: '#10b981',
+    p4: '#a855f7',
+    p5: '#f59e0b',
+    p6: '#06b6d4',
+    p7: '#ec4899',
+    p8: '#84cc16',
+    p9: '#f43f5e',
+    p10: '#8b5cf6',
+    p11: '#14b8a6',
+    p12: '#ea580c'
+  };
 
   // --- GAME STATE ---
   let masterRoster = getSavedRoster(); // 1,000+ characters loaded
@@ -128,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let startingBudget = 75000;
   let currentPlayerIndex = 0;
   let players = [];
+  let setupPlayersList = [];
 
   let pendingCharacter = null;
   let pendingSliceIndex = -1;
@@ -185,15 +209,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Repopulate pools from current master roster
     refreshActivePools();
 
-    // Build Player Objects
-    const playerColors = ['p1', 'p2', 'p3', 'p4'];
+    // Build Player Objects with support for any player count
     players = [];
     for (let i = 0; i < numPlayers; i++) {
       const pName = (customNames[i] && customNames[i].trim()) || (players[i] && players[i].name) || `Player ${i + 1}`;
       players.push({
         id: i + 1,
         name: pName,
-        colorClass: playerColors[i % 4],
+        colorClass: `p${(i % 12) + 1}`,
         money: startingBudget,
         characters: []
       });
@@ -204,19 +227,143 @@ document.addEventListener('DOMContentLoaded', () => {
     spinBtn.disabled = false;
   }
 
-  function renderSetupPlayerInputs(count) {
+  function addNewPlayerQuick(customName = null) {
+    const newIdx = players.length;
+    const pName = customName || `Player ${newIdx + 1}`;
+    const colorClass = `p${(newIdx % 12) + 1}`;
+    players.push({
+      id: newIdx + 1,
+      name: pName,
+      colorClass: colorClass,
+      money: startingBudget,
+      characters: []
+    });
+    numPlayers = players.length;
+    renderPlayerDock();
+    updateCounters();
+    wheel.sound.playTick();
+  }
+
+  function openSetupModal() {
+    setupPlayersList = players.map(p => ({
+      name: p.name,
+      colorClass: p.colorClass
+    }));
+    if (setupPlayersList.length === 0) {
+      setupPlayersList = [
+        { name: 'Player 1', colorClass: 'p1' },
+        { name: 'Player 2', colorClass: 'p2' }
+      ];
+    }
+    budgetSlider.value = startingBudget;
+    budgetDisplay.textContent = `${startingBudget.toLocaleString()} ฿/Ryo`;
+    renderSetupPlayerInputs();
+    setupModal.showModal();
+  }
+
+  function renderSetupPlayerInputs() {
     if (!playerNamesInputsContainer) return;
+    const count = setupPlayersList.length;
+    if (setupPlayerCountDisplay) setupPlayerCountDisplay.textContent = count;
+    if (setupPlayerTotalTag) setupPlayerTotalTag.textContent = count;
+
+    // Update active preset button highlight
+    pCountBtns.forEach(btn => {
+      const c = parseInt(btn.getAttribute('data-count') || '0');
+      btn.classList.toggle('active', c === count);
+    });
+
     playerNamesInputsContainer.innerHTML = '';
-    for (let i = 0; i < count; i++) {
+    setupPlayersList.forEach((p, i) => {
+      const colorClass = p.colorClass || `p${(i % 12) + 1}`;
+      const colorHex = PLAYER_COLOR_HEX[colorClass] || '#ffd166';
       const row = document.createElement('div');
       row.className = 'player-name-row';
-      const defaultName = (players[i] && players[i].name) ? players[i].name : `Player ${i + 1}`;
       row.innerHTML = `
-        <label class="player-name-label">Player ${i + 1}:</label>
-        <input type="text" class="player-name-input" id="custom-pname-${i}" value="${defaultName}" placeholder="Enter name...">
+        <span class="player-color-dot" style="background: ${colorHex};"></span>
+        <label class="player-name-label">P${i + 1}:</label>
+        <input type="text" class="player-name-input" data-idx="${i}" value="${p.name}" placeholder="Enter name...">
+        ${setupPlayersList.length > 1 ? `<button class="btn-remove-player" data-idx="${i}" type="button" title="Remove Player ${i + 1}">🗑️</button>` : ''}
       `;
       playerNamesInputsContainer.appendChild(row);
+    });
+
+    // Attach row input listeners
+    playerNamesInputsContainer.querySelectorAll('.player-name-input').forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const idx = parseInt(e.target.getAttribute('data-idx'));
+        if (setupPlayersList[idx]) {
+          setupPlayersList[idx].name = e.target.value;
+        }
+      });
+    });
+
+    // Attach row delete listeners
+    playerNamesInputsContainer.querySelectorAll('.btn-remove-player').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.getAttribute('data-idx'));
+        if (setupPlayersList.length > 1) {
+          setupPlayersList.splice(idx, 1);
+          renderSetupPlayerInputs();
+        }
+      });
+    });
+  }
+
+  function addPlayerToSetup() {
+    const nextIdx = setupPlayersList.length;
+    const colorClass = `p${(nextIdx % 12) + 1}`;
+    setupPlayersList.push({
+      name: `Player ${nextIdx + 1}`,
+      colorClass: colorClass
+    });
+    renderSetupPlayerInputs();
+  }
+
+  function applySetup(isFreshReset = false) {
+    const newBudget = parseInt(budgetSlider.value || '75000');
+    startingBudget = newBudget;
+    const count = setupPlayersList.length;
+
+    if (isFreshReset) {
+      const names = setupPlayersList.map((p, i) => (p.name && p.name.trim()) || `Player ${i + 1}`);
+      initGame(count, newBudget, names);
+      setupModal.close();
+      wheel.sound.playVictory();
+      return;
     }
+
+    // Apply & Update players while preserving already drafted squads & balances
+    const updatedPlayers = [];
+    for (let i = 0; i < count; i++) {
+      const pName = (setupPlayersList[i] && setupPlayersList[i].name && setupPlayersList[i].name.trim()) || `Player ${i + 1}`;
+      const colorClass = `p${(i % 12) + 1}`;
+      if (players[i]) {
+        players[i].name = pName;
+        players[i].colorClass = colorClass;
+        updatedPlayers.push(players[i]);
+      } else {
+        // Brand new player added (e.g. 5th, 6th player)
+        updatedPlayers.push({
+          id: i + 1,
+          name: pName,
+          colorClass: colorClass,
+          money: newBudget,
+          characters: []
+        });
+      }
+    }
+
+    players = updatedPlayers;
+    numPlayers = players.length;
+    if (currentPlayerIndex >= players.length) {
+      currentPlayerIndex = 0;
+    }
+
+    renderPlayerDock();
+    updateCounters();
+    setupModal.close();
+    wheel.sound.playVictory();
   }
 
   function refreshActivePools() {
@@ -309,6 +456,27 @@ document.addEventListener('DOMContentLoaded', () => {
       playersDock.appendChild(card);
     });
 
+    // Quick "Add Player" button directly in the scoreboard dock
+    const addCard = document.createElement('div');
+    addCard.className = 'player-card add-player-dock-card';
+    addCard.title = 'Click to add another player (Player 5, 6, etc.)';
+    addCard.innerHTML = `
+      <div class="add-player-dock-text">➕ Add Player (${players.length + 1}P)</div>
+    `;
+    addCard.addEventListener('click', () => {
+      const suggestedName = `Player ${players.length + 1}`;
+      const entered = prompt(`Enter name for Player ${players.length + 1}:`, suggestedName);
+      if (entered !== null) {
+        addNewPlayerQuick(entered.trim() || suggestedName);
+      }
+    });
+    playersDock.appendChild(addCard);
+
+    // Update Header Button Player Count Indicator
+    if (btnPlayerCount) {
+      btnPlayerCount.textContent = `${players.length}P`;
+    }
+
     // Click to rename directly on scoreboard
     document.querySelectorAll('.player-name-text').forEach(el => {
       el.addEventListener('click', () => {
@@ -357,7 +525,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function initBiddingArena(char) {
     biddingArena.style.display = 'block';
 
-    // Reset Live Auction State
+    // Reset Live Auction State for all players
     liveAuction = {
       currentBid: 0,
       highestBidderIndex: -1,
@@ -366,7 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
       hasConcluded: false
     };
 
-    // Reset Secret Auction State
+    // Reset Secret Auction State for all players
     secretAuction = {
       stepIndex: 0,
       bids: {},
@@ -446,7 +614,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const turnPlayer = players[currentTurnPlayerIdx];
 
     liveActiveTurnBadge.textContent = `👉 ${turnPlayer.name}`;
-    liveActiveTurnBadge.style.color = turnPlayer.colorClass === 'p1' ? '#ef4444' : (turnPlayer.colorClass === 'p2' ? '#38bdf8' : (turnPlayer.colorClass === 'p3' ? '#10b981' : '#a855f7'));
+    liveActiveTurnBadge.style.color = PLAYER_COLOR_HEX[turnPlayer.colorClass] || '#ffd166';
     liveActivePurse.textContent = `Purse: ${turnPlayer.money.toLocaleString()} ${currency}`;
 
     // Update Raise Buttons with exact budget checks
@@ -1178,14 +1346,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Setup Modal Handling
   openSetupBtn.addEventListener('click', () => {
-    const activePBtn = document.querySelector('.p-count-btn[data-count].active');
-    const count = parseInt(activePBtn ? activePBtn.getAttribute('data-count') : '2');
-    renderSetupPlayerInputs(count);
-    setupModal.showModal();
+    openSetupModal();
   });
 
   if (closeSetupBtn) {
     closeSetupBtn.addEventListener('click', () => setupModal.close());
+  }
+
+  if (setupAddPlayerBtn) {
+    setupAddPlayerBtn.addEventListener('click', () => addPlayerToSetup());
+  }
+
+  if (setupAddPlayerTopBtn) {
+    setupAddPlayerTopBtn.addEventListener('click', () => addPlayerToSetup());
   }
 
   budgetSlider.addEventListener('input', (e) => {
@@ -1195,25 +1368,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   pCountBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-      pCountBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const count = parseInt(btn.getAttribute('data-count') || '2');
-      renderSetupPlayerInputs(count);
+      const targetCount = parseInt(btn.getAttribute('data-count') || '2');
+      while (setupPlayersList.length < targetCount) {
+        const idx = setupPlayersList.length;
+        setupPlayersList.push({
+          name: `Player ${idx + 1}`,
+          colorClass: `p${(idx % 12) + 1}`
+        });
+      }
+      if (setupPlayersList.length > targetCount) {
+        setupPlayersList = setupPlayersList.slice(0, targetCount);
+      }
+      renderSetupPlayerInputs();
     });
   });
 
   startGameBtn.addEventListener('click', () => {
-    const activePBtn = document.querySelector('.p-count-btn[data-count].active');
-    const count = parseInt(activePBtn ? activePBtn.getAttribute('data-count') : '2');
-    const budget = parseInt(budgetSlider.value || '75000');
-
-    const customNames = [];
-    for (let i = 0; i < count; i++) {
-      const inp = document.getElementById(`custom-pname-${i}`);
-      customNames.push(inp && inp.value.trim() ? inp.value.trim() : `Player ${i + 1}`);
-    }
-
-    setupModal.close();
-    initGame(count, budget, customNames);
+    applySetup(false);
   });
+
+  if (resetNewGameBtn) {
+    resetNewGameBtn.addEventListener('click', () => {
+      if (confirm('🔄 Start fresh game with these players? This will reset all drafted character squads and starting budgets.')) {
+        applySetup(true);
+      }
+    });
+  }
 });

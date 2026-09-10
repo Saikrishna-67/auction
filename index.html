@@ -25,7 +25,7 @@
           ✏️ Edit Roster (<span id="btn-total-count">1000+</span>)
         </button>
         <button id="open-setup-btn" class="btn-header" title="Player & Budget Settings">
-          ⚙️ Game Settings (1-4P)
+          ⚙️ Game Setup (<span id="btn-player-count">2P</span>)
         </button>
       </div>
     </div>
@@ -328,25 +328,33 @@
   <dialog id="setup-modal">
     <div class="setup-content">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;">
-        <div class="setup-title" style="margin-bottom: 0;">⚔️ Game Setup (1-4 Players)</div>
+        <div class="setup-title" style="margin-bottom: 0;">⚔️ Game Setup (<span id="setup-player-count-display">2</span> Players)</div>
         <button class="btn-sm btn-del" id="close-setup-btn" style="margin-right: 0;">Close ✕</button>
       </div>
 
       <div class="setup-group">
-        <label class="setup-label">Number of Players:</label>
+        <label class="setup-label">Quick Player Presets or Add Player:</label>
         <div class="player-count-btns">
-          <button class="p-count-btn" data-count="1" type="button">1 Player</button>
-          <button class="p-count-btn active" data-count="2" type="button">2 Players</button>
-          <button class="p-count-btn" data-count="3" type="button">3 Players</button>
-          <button class="p-count-btn" data-count="4" type="button">4 Players</button>
+          <button class="p-count-btn" data-count="1" type="button">1P</button>
+          <button class="p-count-btn active" data-count="2" type="button">2P</button>
+          <button class="p-count-btn" data-count="3" type="button">3P</button>
+          <button class="p-count-btn" data-count="4" type="button">4P</button>
+          <button class="p-count-btn" data-count="5" type="button">5P</button>
+          <button class="p-count-btn" data-count="6" type="button">6P</button>
+          <button class="p-count-btn" data-count="8" type="button">8P</button>
+          <button class="btn-sm btn-add" id="setup-add-player-top-btn" type="button" style="padding: 0.5rem 0.7rem; font-weight: 800; white-space: nowrap;">➕ Add</button>
         </div>
       </div>
 
       <div class="setup-group">
-        <label class="setup-label">Customize Player Names:</label>
-        <div class="player-names-inputs" id="player-names-inputs">
-          <!-- Dynamically generated name inputs for 1-4 players -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+          <label class="setup-label" style="margin-bottom: 0;">Customize Player Names & Order:</label>
+          <span style="font-size: 0.75rem; color: #94a3b8;">Total: <strong id="setup-player-total-tag" style="color: #ffd166;">2</strong></span>
         </div>
+        <div class="player-names-inputs" id="player-names-inputs">
+          <!-- Dynamically generated name inputs for all players with color tags and remove buttons -->
+        </div>
+        <button type="button" class="btn-add-player-setup" id="setup-add-player-btn">➕ Add Another Player</button>
       </div>
 
       <div class="setup-group">
@@ -357,7 +365,10 @@
         </div>
       </div>
 
-      <button class="btn-primary" id="start-game-btn">Apply & Start Game 🚀</button>
+      <div class="setup-action-btns">
+        <button class="btn-secondary" id="reset-new-game-btn" type="button" title="Start fresh from 0 characters & full funds">🔄 Fresh Reset</button>
+        <button class="btn-primary" id="start-game-btn" type="button" style="margin-top: 0;">Apply & Update 🚀</button>
+      </div>
     </div>
   </dialog>
 
